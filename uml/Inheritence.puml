@@ -1,0 +1,167 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+' ==========================================
+' 顶级抽象父类
+' ==========================================
+abstract class AbstractFlyingObject
+{
+    # locationX:int
+    # locationY:int
+    # speedX:int
+    # speedY:int
+    # image:BufferedImage
+    # width:int
+    # height:int
+    # isValid:boolean
+
+    + AbstractFlyingObject(int locationX, int locationY, int speedX, int speedY)
+    + forward():void
+    + crash(AbstractFlyingObject flyingObject):boolean
+    + setLocation(double locationX, double locationY):void
+    + getLocationX():int
+    + getLocationY():int
+    + getSpeedY():int
+    + getImage():BufferedImage
+    + getWidth():int
+    + getHeight():int
+    + notValid():boolean
+    + vanish():void
+}
+
+abstract class AbstractAircraft
+{
+    # maxHp:int
+    # hp:int
+    + AbstractAircraft(int locationX, int locationY, int speedX, int speedY, int hp)
+    + decreaseHp(int decrease):void
+    + getHp():int
+    + {abstract} shoot():List<BaseBullet>
+}
+
+' ==========================================
+' 英雄机 (单例模式)
+' ==========================================
+class HeroAircraft {
+    - shootNum:int
+    - power:int
+    - direction:int
+    - {static} volatile instance:HeroAircraft
+
+    - HeroAircraft(int locationX, int locationY, int speedX, int speedY, int hp)
+    + {static} getInstance():HeroAircraft
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+' ==========================================
+' 敌机类 (提取抽象父类 + 5种具体敌机)
+' ==========================================
+abstract class AbstractEnemy {
+    + AbstractEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + {abstract} shoot():List<BaseBullet>
+}
+
+class MobEnemy {
+    + MobEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+class EliteEnemy {
+    + EliteEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+class VanguardEnemy {
+    + VanguardEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+class AceEnemy {
+    + AceEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+class BossEnemy {
+    + BossEnemy(int locationX, int locationY, int speedX, int speedY, int hp)
+    + forward():void
+    + shoot():List<BaseBullet>
+}
+
+' ==========================================
+' 道具类 (提取抽象父类 + 5种具体道具)
+' ==========================================
+abstract class AbstractProp {
+    + AbstractProp(int locationX, int locationY, int speedX, int speedY)
+    + forward():void
+}
+
+class HpProp {
+    + HpProp(int locationX, int locationY, int speedX, int speedY)
+}
+
+class FireProp {
+    + FireProp(int locationX, int locationY, int speedX, int speedY)
+}
+
+class SuperFireProp {
+    + SuperFireProp(int locationX, int locationY, int speedX, int speedY)
+}
+
+class BombProp {
+    + BombProp(int locationX, int locationY, int speedX, int speedY)
+}
+
+class IceProp {
+    + IceProp(int locationX, int locationY, int speedX, int speedY)
+}
+
+' ==========================================
+' 子弹类 (基础父类 + 2种子弹)
+' ==========================================
+abstract class BaseBullet
+{
+    - power:int
+    + BaseBullet(int locationX, int locationY, int speedX, int speedY, int power)
+    + forward():void
+    + getPower():int
+}
+
+class HeroBullet {
+    + HeroBullet(int locationX, int locationY, int speedX, int speedY, int power)
+}
+
+class EnemyBullet {
+    + EnemyBullet(int locationX, int locationY, int speedX, int speedY, int power)
+}
+
+' ==========================================
+' 继承关系连线 (泛化关系)
+' ==========================================
+AbstractFlyingObject <|-- AbstractAircraft
+AbstractFlyingObject <|-- BaseBullet
+AbstractFlyingObject <|-- AbstractProp
+
+AbstractAircraft <|-- HeroAircraft
+AbstractAircraft <|-- AbstractEnemy
+
+AbstractEnemy <|-- MobEnemy
+AbstractEnemy <|-- EliteEnemy
+AbstractEnemy <|-- VanguardEnemy
+AbstractEnemy <|-- AceEnemy
+AbstractEnemy <|-- BossEnemy
+
+AbstractProp <|-- HpProp
+AbstractProp <|-- FireProp
+AbstractProp <|-- SuperFireProp
+AbstractProp <|-- BombProp
+AbstractProp <|-- IceProp
+
+BaseBullet <|-- HeroBullet
+BaseBullet <|-- EnemyBullet
+
+@enduml
