@@ -3,10 +3,10 @@ package edu.hitsz.application;
 import edu.hitsz.aircraft.*;
 import edu.hitsz.bullet.BaseBullet;
 import edu.hitsz.basic.AbstractFlyingObject;
+import edu.hitsz.factory.*;
 import edu.hitsz.prop.AbstractProp;
-import edu.hitsz.prop.BloodProp;
-import edu.hitsz.prop.FireProp;
-import edu.hitsz.prop.SuperFireProp;
+
+// 引入我们新建的工厂类
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,7 +14,6 @@ import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
 import java.util.Timer;
-import java.util.concurrent.*;
 
 /**
  * 游戏主面板，游戏启动
@@ -52,6 +51,15 @@ public class Game extends JPanel {
     //游戏结束标志
     private boolean gameOverFlag = false;
 
+    // ==========================================
+    // [重构] 实例化敌机工厂 (工厂方法模式)
+    // ==========================================
+    private final EnemyFactory mobEnemyFactory = new MobEnemyFactory();
+    private final EnemyFactory eliteEnemyFactory = new EliteEnemyFactory();
+    // [新增] 精锐与王牌敌机工厂
+    private final EnemyFactory vanguardEnemyFactory = new VanguardEnemyFactory();
+    private final EnemyFactory aceEnemyFactory = new AceEnemyFactory();
+
     public Game() {
         // 使用单例工厂方法获取实例
         heroAircraft = HeroAircraft.getInstance(Main.WINDOW_WIDTH / 2, Main.WINDOW_HEIGHT - 100, 0, 0, 100);
@@ -80,27 +88,17 @@ public class Game extends JPanel {
                 if (enemySpawnCounter >= enemySpawnCycle) {
                     enemySpawnCounter = 0;
 
-                    // --- 修改部分：随机产生普通敌机或精英敌机 ---
                     if (enemyAircrafts.size() < enemyMaxNumber) {
                         double rand = Math.random();
-                        if (rand < 0.2) {
-                            // 20% 概率产生精英敌机
-                            enemyAircrafts.add(new EliteEnemy(
-                                    (int) (Math.random() * (Main.WINDOW_WIDTH - ImageManager.ELITE_ENEMY_IMAGE.getWidth())),
-                                    (int) (Math.random() * Main.WINDOW_HEIGHT * 0.05),
-                                    0,
-                                    10,
-                                    60  // 精英敌机血量更高
-                            ));
+                        // 设定出现概率：王牌 10%，精锐 20%，精英 30%，普通 40%
+                        if (rand < 0.1) {
+                            enemyAircrafts.add(aceEnemyFactory.createEnemy());
+                        } else if (rand < 0.3) {
+                            enemyAircrafts.add(vanguardEnemyFactory.createEnemy());
+                        } else if (rand < 0.6) {
+                            enemyAircrafts.add(eliteEnemyFactory.createEnemy());
                         } else {
-                            // 80% 概率产生普通敌机
-                            enemyAircrafts.add(new MobEnemy(
-                                    (int) (Math.random() * (Main.WINDOW_WIDTH - ImageManager.MOB_ENEMY_IMAGE.getWidth())),
-                                    (int) (Math.random() * Main.WINDOW_HEIGHT * 0.05),
-                                    0,
-                                    10,
-                                    30
-                            ));
+                            enemyAircrafts.add(mobEnemyFactory.createEnemy());
                         }
                     }
                 }
@@ -137,7 +135,6 @@ public class Game extends JPanel {
             //英雄机射击
             heroBullets.addAll(heroAircraft.shoot());
 
-            // --- 修改部分：敌机射击 ---
             // 遍历所有敌机，调用其 shoot 方法
             for (AbstractAircraft enemy : enemyAircrafts) {
                 enemyBullets.addAll(enemy.shoot());
@@ -154,7 +151,6 @@ public class Game extends JPanel {
         }
     }
 
-    // --- 修改 aircraftsMoveAction 增加道具移动 ---
     private void aircraftsMoveAction() {
         for (AbstractAircraft enemyAircraft : enemyAircrafts) {
             enemyAircraft.forward();
@@ -169,7 +165,7 @@ public class Game extends JPanel {
      * 碰撞检测
      */
     private void crashCheckAction() {
-        // --- 修改部分：敌机子弹攻击英雄机 ---
+        // 1. 敌机子弹攻击英雄机
         for (BaseBullet bullet : enemyBullets) {
             if (bullet.notValid()) {
                 continue;
@@ -189,10 +185,15 @@ public class Game extends JPanel {
                     enemyAircraft.decreaseHp(bullet.getPower());
                     bullet.vanish();
 
-                    // --- [新增逻辑] 精英敌机坠毁掉落道具 ---
+                    // 敌机坠毁掉落道具及加分
                     if (enemyAircraft.notValid()) {
                         score += 10;
-                        if (enemyAircraft instanceof EliteEnemy) {
+
+                        // 判定哪些敌机会掉落道具：精英、精锐、王牌都有几率掉落
+                        if (enemyAircraft instanceof EliteEnemy ||
+                                enemyAircraft instanceof VanguardEnemy ||
+                                enemyAircraft instanceof AceEnemy) {
+
                             // 设定 50% 的概率掉落道具
                             if (Math.random() < 0.5) {
                                 dropProp(enemyAircraft);
@@ -203,7 +204,7 @@ public class Game extends JPanel {
             }
         }
 
-        // 3. [新增逻辑] 英雄机拾取道具检测
+        // 3. 英雄机拾取道具检测
         for (AbstractProp prop : props) {
             if (prop.notValid()) continue;
             if (heroAircraft.crash(prop)) {
@@ -213,22 +214,37 @@ public class Game extends JPanel {
         }
     }
 
-    // --- [辅助方法] 掉落逻辑 ---
+    // ==========================================
+    // [重构] 掉落逻辑使用简单工厂模式，并区分敌机类型
+    // ==========================================
     private void dropProp(AbstractAircraft enemy) {
         int x = enemy.getLocationX();
         int y = enemy.getLocationY();
-        double rand = Math.random();
-        if (rand < 0.33) {
-            props.add(new BloodProp(x, y, 0, 5));
-        } else if (rand < 0.66) {
-            props.add(new FireProp(x, y, 0, 5));
-        } else {
-            props.add(new SuperFireProp(x, y, 0, 5));
+
+        // 声明一个道具池数组
+        String[] propPool = null;
+
+        // 根据敌机类型，设定不同的道具掉落池
+        if (enemy instanceof AceEnemy) {
+            // 王牌敌机：5 种道具全覆盖
+            propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb", "Freeze"};
+        } else if (enemy instanceof VanguardEnemy) {
+            // 精锐敌机：4 种道具（没有冰冻）
+            propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb"};
+        } else if (enemy instanceof EliteEnemy) {
+            // 精英敌机：基础 3 种道具
+            propPool = new String[]{"Blood", "Fire", "SuperFire"};
+        }
+
+        // 从池子中随机抽取一种道具，并让工厂生产
+        if (propPool != null) {
+            int randomIndex = (int) (Math.random() * propPool.length);
+            String propType = propPool[randomIndex];
+            props.add(PropFactory.createProp(propType, x, y));
         }
     }
 
 
-    // --- 修改 postProcessAction 增加清理 ---
     private void postProcessAction() {
         enemyBullets.removeIf(AbstractFlyingObject::notValid);
         heroBullets.removeIf(AbstractFlyingObject::notValid);
@@ -257,10 +273,6 @@ public class Game extends JPanel {
         paintImageWithPositionRevised(g, enemyBullets);
         paintImageWithPositionRevised(g, heroBullets);
         paintImageWithPositionRevised(g, props); // [绘制道具]
-        paintImageWithPositionRevised(g, enemyAircrafts);
-
-        paintImageWithPositionRevised(g, enemyBullets);
-        paintImageWithPositionRevised(g, heroBullets);
         paintImageWithPositionRevised(g, enemyAircrafts);
 
         g.drawImage(ImageManager.HERO_IMAGE, heroAircraft.getLocationX() - ImageManager.HERO_IMAGE.getWidth() / 2,

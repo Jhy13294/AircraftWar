@@ -1,9 +1,10 @@
 package edu.hitsz.aircraft;
 
 import edu.hitsz.bullet.BaseBullet;
-import edu.hitsz.bullet.HeroBullet;
+// 引入策略接口和直射策略
+import edu.hitsz.strategy.ShootStrategy;
+import edu.hitsz.strategy.StraightShootStrategy;
 
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -21,7 +22,11 @@ public class HeroAircraft extends AbstractAircraft {
      */
     private volatile static HeroAircraft instance;
 
-    // 每次射击发射子弹数量
+    // --- [v2新增/修改] 策略模式相关属性 ---
+    // 默认射击策略：直射
+    private ShootStrategy strategy = new StraightShootStrategy();
+
+    // 每次射击发射子弹数量 (默认 1)
     private int shootNum = 1;
 
     // 子弹威力
@@ -54,29 +59,34 @@ public class HeroAircraft extends AbstractAircraft {
         return instance;
     }
 
+    // --- [v2新增] 提供给道具调用的 Setter 方法 ---
+    /**
+     * 设置射击策略
+     */
+    public void setStrategy(ShootStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    /**
+     * 设置每次射击的子弹数量
+     */
+    public void setShootNum(int shootNum) {
+        this.shootNum = shootNum;
+    }
+
     @Override
     public void forward() {
         // 英雄机由鼠标控制，不通过forward函数移动
     }
 
-    @Override
     /**
      * 通过射击产生子弹
      * @return 射击出的子弹List
      */
+    @Override
     public List<BaseBullet> shoot() {
-        List<BaseBullet> res = new LinkedList<>();
-        int x = this.getLocationX();
-        int y = this.getLocationY() + direction*2;
-        int speedX = 0;
-        int speedY = this.getSpeedY() + direction*5;
-        BaseBullet bullet;
-        for(int i=0; i<shootNum; i++){
-            // 子弹发射位置相对飞机位置向前偏移
-            // 多个子弹横向分散
-            bullet = new HeroBullet(x + (i*2 - shootNum + 1)*10, y, speedX, speedY, power);
-            res.add(bullet);
-        }
-        return res;
+        // --- [修改] 使用当前的策略执行射击 ---
+        // 参数：X坐标，Y坐标，方向，威力，子弹数量，是否为英雄机(true)
+        return strategy.shoot(this.getLocationX(), this.getLocationY(), direction, power, shootNum, true);
     }
 }

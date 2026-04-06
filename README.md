@@ -3,7 +3,7 @@
 本项目是一个基于 Java Swing/AWT 开发的经典 2D 纵轴射击游戏——“飞机大战”。
 当前版本为 **实验一** 的阶段性成果，主要完成了游戏的基础框架、面向对象体系设计以及核心物理和道具逻辑。
 
-## 🌟 核心功能与特性 (实验一完成)
+### [v1.0]🌟 核心功能与特性 (实验一)
 
 - **面向对象架构设计**
     - 提取了飞行物基类 `AbstractFlyingObject`。
@@ -21,20 +21,54 @@
     - 精英敌机被击毁时，有一定概率掉落道具。
     - 包含多种道具：加血道具 (`BloodProp`)、火力道具 (`FireProp`)、超级火力道具 (`SuperFireProp`)、炸弹道具 (`BombProp`)。
     - 拾取加血道具可动态恢复英雄机生命值（不超过最大生命值），其他道具拾取后在控制台打印生效日志。
+    - # 版本更新日志
 
-## 🏗️ 核心类图设计 (简述)
+### [v2.0] - 实验二：工厂模式重构与新机制引入
+**代码重构 (Design Patterns):**
+- 引入 **简单工厂模式 (Simple Factory)** 重构道具 (Prop) 的创建逻辑。
+- 引入 **工厂方法模式 (Factory Method)** 重构敌机 (Enemy) 的创建逻辑，提高系统可扩展性。
 
-```text
-AbstractFlyingObject (所有飞行物的基类)
- ├── AbstractAircraft (飞机基类)
- │    ├── HeroAircraft (英雄机)
- │    ├── MobEnemy (普通敌机)
- │    └── EliteEnemy (精英敌机)
- ├── BaseBullet (子弹基类)
- │    ├── HeroBullet (英雄子弹)
- │    └── EnemyBullet (敌机子弹)
- └── AbstractProp (道具基类)
-      ├── BloodProp (加血)
-      ├── FireProp (火力)
-      ├── SuperFireProp (超级火力)
-      └── BombProp (炸弹清屏)
+**新增实体与行为 (New Features):**
+- **新型敌机**：新增精锐敌机、王牌敌机。赋予其不仅能向下飞行，还能左右移动的轨迹。
+- **全新弹道**：精锐敌机支持向下直射双排子弹；王牌敌机支持扇形散射弹道（单次 3 颗）。
+- **道具系统**：新增 5 种道具（加血、火力、超级火力、炸弹、冰冻）。
+
+**游戏逻辑优化 (Gameplay):**
+- 完善道具掉落机制：精锐敌机击毁概率掉落 4 种道具，王牌敌机击毁概率掉落 5 种道具。
+- 实现道具拾取效果：英雄机触碰加血道具可真实恢复血量（具有最大血量上限），其余道具触碰后在控制台打印生效信息。
+- 完善 `ImageManager` 静态图片加载机制，支持新敌机与新道具的贴图渲染。
+
+##🏗️ 核心实体与工厂类图设计 (v2 更新版)
+
+1. 飞行物实体类群 (继承结构)
+   AbstractFlyingObject (所有飞行物的基类)
+   ├── AbstractAircraft (飞机基类)
+   │    ├── HeroAircraft (英雄机 - 单例)
+   │    ├── MobEnemy (普通敌机)
+   │    ├── EliteEnemy (精英敌机)
+   │    ├── AdvancedEnemy (精锐敌机)    ⭐ [v2新增] 支持左右移动与双排子弹
+   │    └── AceEnemy (王牌敌机)         ⭐ [v2新增] 支持左右移动与扇形散射
+   │
+   ├── BaseBullet (子弹基类)
+   │    ├── HeroBullet (英雄子弹)
+   │    └── EnemyBullet (敌机子弹)
+   │
+   └── AbstractProp (道具基类)
+   ├── BloodProp (加血道具)
+   ├── FireProp (火力道具)
+   ├── SuperFireProp (超级火力道具)
+   ├── BombProp (炸弹道具)
+   └── FreezeProp (冰冻道具)       ⭐ [v2新增] 冰冻敌机效果
+
+----------------------------------------------------------------------
+
+2. 创建者类群 (设计模式)
+   EnemyFactory (敌机工厂接口)           ⭐ [v2新增 - 工厂方法模式]
+   ├── MobEnemyFactory (普通敌机工厂)
+   ├── EliteEnemyFactory (精英敌机工厂)
+   ├── AdvancedEnemyFactory (精锐敌机工厂)
+   └── AceEnemyFactory (王牌敌机工厂)
+
+PropFactory (道具简单工厂类)          ⭐ [v2新增 - 简单工厂模式]
+└── 提供静态方法: createProp(int type, int x, int y) 
+

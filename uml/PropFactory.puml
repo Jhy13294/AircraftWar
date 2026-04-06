@@ -1,0 +1,44 @@
+@startuml
+'设置类的属性和方法图标为标准的 + - #
+skinparam classAttributeIconSize 0
+
+' 抽象产品
+abstract class AbstractProp {
+    + {abstract} effect(heroAircraft: HeroAircraft): void
+}
+
+' 具体产品
+class BloodProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+class FireProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+class SuperFireProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+class BombProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+class FreezeProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+
+' 简单工厂
+class PropFactory {
+    + {static} createProp(propType: String, x: int, y: int, speedX: int, speedY: int): AbstractProp
+}
+
+' 继承关系
+AbstractProp <|-- BloodProp
+AbstractProp <|-- FireProp
+AbstractProp <|-- SuperFireProp
+AbstractProp <|-- BombProp
+AbstractProp <|-- FreezeProp
+
+' 依赖关系
+PropFactory ..> AbstractProp : creates >
+
+note top of PropFactory : 简单工厂类，通过传入的 propType\n(如 "Blood", "Fire") 决定实例化哪种道具。
+
+@enduml
