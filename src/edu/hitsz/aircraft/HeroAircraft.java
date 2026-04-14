@@ -85,7 +85,7 @@ public class HeroAircraft extends AbstractAircraft {
      */
     @Override
     public List<BaseBullet> shoot() {
-        // --- [修改] 使用当前的策略执行射击 ---
+        // --- [v2修改] 使用当前的策略执行射击 ---
         // 参数：X坐标，Y坐标，方向，威力，子弹数量，是否为英雄机(true)
         return strategy.shoot(this.getLocationX(), this.getLocationY(), direction, power, shootNum, true);
     }

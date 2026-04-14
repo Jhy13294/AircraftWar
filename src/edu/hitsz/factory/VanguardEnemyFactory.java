@@ -11,7 +11,7 @@ public class VanguardEnemyFactory implements EnemyFactory {
         int y = (int) (Math.random() * Main.WINDOW_HEIGHT * 0.05);
         // 随机给一个初始的横向速度：向左或向右
         int speedX = Math.random() > 0.5 ? 3 : -3;
-        int speedY = 5;
+        int speedY = 3;
         int hp = 60; // 精锐机血量
         return new VanguardEnemy(x, y, speedX, speedY, hp);
     }

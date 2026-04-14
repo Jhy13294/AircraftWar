@@ -34,12 +34,14 @@ public class ImageManager {
     public static BufferedImage ELITE_ENEMY_IMAGE; // [新增] 精英敌机图片变量
     public static BufferedImage VANGUARD_ENEMY_IMAGE;
     public static BufferedImage ACE_ENEMY_IMAGE;
+    public static BufferedImage BOSS_ENEMY_IMAGE; //[V3] 新增
 
     public static BufferedImage BLOOD_PROP_IMAGE;
     public static BufferedImage FIRE_PROP_IMAGE;
     public static BufferedImage SUPER_FIRE_PROP_IMAGE;
     public static BufferedImage FREEZE_PROP_IMAGE;
     public static BufferedImage BOMB_PROP_IMAGE;
+
 
     static {
         try {
@@ -51,6 +53,7 @@ public class ImageManager {
             ELITE_ENEMY_IMAGE = ImageIO.read(new FileInputStream("src/images/elite.png")); // [v1新增] 加载精英敌机图片
             VANGUARD_ENEMY_IMAGE = ImageIO.read(new FileInputStream("src/images/elitePlus.png"));// [v2新增] 加载精锐敌机图片
             ACE_ENEMY_IMAGE = ImageIO.read(new FileInputStream("src/images/elitePro.png"));// [v2新增] 加载王牌敌机图片
+            BOSS_ENEMY_IMAGE = ImageIO.read(new FileInputStream("src/images/boss.png")); //[v3新增] 加载boss敌机图片
 
             HERO_BULLET_IMAGE = ImageIO.read(new FileInputStream("src/images/bullet_hero.png"));
             ENEMY_BULLET_IMAGE = ImageIO.read(new FileInputStream("src/images/bullet_enemy.png"));
@@ -60,6 +63,7 @@ public class ImageManager {
             CLASSNAME_IMAGE_MAP.put(EliteEnemy.class.getName(), ELITE_ENEMY_IMAGE); // [新增] 注册精英敌机映射
             CLASSNAME_IMAGE_MAP.put(VanguardEnemy.class.getName(), VANGUARD_ENEMY_IMAGE);// [v2新增] 注册精锐敌机映射
             CLASSNAME_IMAGE_MAP.put(AceEnemy.class.getName(), ACE_ENEMY_IMAGE);// [v2新增] 注册王牌敌机映射
+            CLASSNAME_IMAGE_MAP.put(BossEnemy.class.getName(),BOSS_ENEMY_IMAGE);//[v3新增] 注册BOSS敌机映射
 
 
             CLASSNAME_IMAGE_MAP.put(HeroBullet.class.getName(), HERO_BULLET_IMAGE);
