@@ -1,0 +1,82 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam titleFontSize 18
+
+title 飞机大战 - 弹道系统策略模式 (Strategy Pattern) UML类图
+
+' 1. 策略接口 (Strategy)
+interface ShootStrategy <<Strategy>> {
+    + shoot(x: int, y: int, direction: int, power: int, shootNum: int, isHero: boolean): List<BaseBullet>
+}
+
+' 2. 具体策略实现 (ConcreteStrategy)
+class StraightShootStrategy <<ConcreteStrategy>> {
+    + shoot(x: int, y: int, direction: int, power: int, shootNum: int, isHero: boolean): List<BaseBullet>
+}
+
+class ScatterShootStrategy <<ConcreteStrategy>> {
+    + shoot(x: int, y: int, direction: int, power: int, shootNum: int, isHero: boolean): List<BaseBullet>
+}
+
+class RingShootStrategy <<ConcreteStrategy>> {
+    + shoot(x: int, y: int, direction: int, power: int, shootNum: int, isHero: boolean): List<BaseBullet>
+}
+
+' 实现关系
+ShootStrategy <|.. StraightShootStrategy : <<realize>>
+ShootStrategy <|.. ScatterShootStrategy : <<realize>>
+ShootStrategy <|.. RingShootStrategy : <<realize>>
+
+
+' 3. 上下文 (Context)
+abstract class AbstractAircraft <<Context>> {
+    - strategy: ShootStrategy
+    - shootNum: int
+    - power: int
+    - direction: int
+    + setStrategy(strategy: ShootStrategy): void
+    + setShootNum(shootNum: int): void
+    + shoot(): List<BaseBullet>
+}
+
+class HeroAircraft {
+    + shoot(): List<BaseBullet>
+}
+
+class BossEnemy {
+    + shoot(): List<BaseBullet>
+}
+
+' 继承关系
+AbstractAircraft <|-- HeroAircraft
+AbstractAircraft <|-- BossEnemy
+
+' 聚合关系 (Context 拥有 Strategy)
+AbstractAircraft o--> ShootStrategy : has-a
+
+
+' 4. 触发策略动态替换的客户端/触发者 (Client)
+abstract class AbstractProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+
+class FireProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+
+class SuperFireProp {
+    + effect(heroAircraft: HeroAircraft): void
+}
+
+AbstractProp <|-- FireProp
+AbstractProp <|-- SuperFireProp
+
+' 依赖关系 (展现动态替换的过程)
+FireProp ..> HeroAircraft : 调用 setStrategy()
+SuperFireProp ..> HeroAircraft : 调用 setStrategy()
+
+FireProp ..> ScatterShootStrategy : 实例化
+SuperFireProp ..> RingShootStrategy : 实例化
+
+@enduml

@@ -6,8 +6,6 @@ import edu.hitsz.basic.AbstractFlyingObject;
 import edu.hitsz.factory.*;
 import edu.hitsz.prop.AbstractProp;
 
-// 引入我们新建的工厂类
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -47,6 +45,13 @@ public class Game extends JPanel {
     //当前玩家分数
     private int score = 0;
 
+    // ==========================================
+    // [v3新增] Boss 机制相关变量
+    // ==========================================
+    private final int bossThreshold = 100;      // 分数阈值：每增加 500 分召唤一次 Boss
+    private int lastBossScore = 0;              // 记录上次召唤 Boss 时的分数
+    private boolean bossActive = false;         // 标志位：当前屏幕上是否有 Boss
+
     private final List<AbstractProp> props; // 存储当前屏幕上的道具
     //游戏结束标志
     private boolean gameOverFlag = false;
@@ -56,9 +61,10 @@ public class Game extends JPanel {
     // ==========================================
     private final EnemyFactory mobEnemyFactory = new MobEnemyFactory();
     private final EnemyFactory eliteEnemyFactory = new EliteEnemyFactory();
-    // [新增] 精锐与王牌敌机工厂
     private final EnemyFactory vanguardEnemyFactory = new VanguardEnemyFactory();
     private final EnemyFactory aceEnemyFactory = new AceEnemyFactory();
+    // [v3新增] Boss敌机工厂
+    private final EnemyFactory bossEnemyFactory = new BossEnemyFactory();
 
     public Game() {
         // 使用单例工厂方法获取实例
@@ -84,18 +90,30 @@ public class Game extends JPanel {
             @Override
             public void run() {
 
+                // ==========================================
+                // [v3新增] Boss 召唤逻辑
+                // ==========================================
+                // 如果当前分数达到阈值，并且当前没有Boss存活，则召唤 Boss
+                if (score - lastBossScore >= bossThreshold && !bossActive) {
+                    System.out.println("警告：Boss 敌机降临！");
+                    enemyAircrafts.add(bossEnemyFactory.createEnemy());
+                    bossActive = true;
+                    // 更新记录的分数，防止在同一分数段重复生成
+                    lastBossScore += bossThreshold;
+                }
+
                 enemySpawnCounter++;
                 if (enemySpawnCounter >= enemySpawnCycle) {
                     enemySpawnCounter = 0;
 
                     if (enemyAircrafts.size() < enemyMaxNumber) {
                         double rand = Math.random();
-                        // 设定出现概率：王牌 10%，精锐 20%，精英 30%，普通 40%
-                        if (rand < 0.1) {
+                        // 设定出现概率：王牌 5%，精锐 15%，精英 30%，普通 50%
+                        if (rand < 0.05) {
                             enemyAircrafts.add(aceEnemyFactory.createEnemy());
-                        } else if (rand < 0.3) {
+                        } else if (rand < 0.20) {
                             enemyAircrafts.add(vanguardEnemyFactory.createEnemy());
-                        } else if (rand < 0.6) {
+                        } else if (rand < 0.50) {
                             enemyAircrafts.add(eliteEnemyFactory.createEnemy());
                         } else {
                             enemyAircrafts.add(mobEnemyFactory.createEnemy());
@@ -119,9 +137,8 @@ public class Game extends JPanel {
                 checkResultAction();
             }
         };
-        // 以固定延迟时间进行执行：本次任务执行完成后，延迟 timeInterval 再执行下一次
+        // 以固定延迟时间进行执行
         timer.schedule(task, 0, timeInterval);
-
     }
 
     //***********************
@@ -132,10 +149,8 @@ public class Game extends JPanel {
         shootCounter++;
         if (shootCounter >= shootCycle) {
             shootCounter = 0;
-            //英雄机射击
             heroBullets.addAll(heroAircraft.shoot());
 
-            // 遍历所有敌机，调用其 shoot 方法
             for (AbstractAircraft enemy : enemyAircrafts) {
                 enemyBullets.addAll(enemy.shoot());
             }
@@ -154,11 +169,22 @@ public class Game extends JPanel {
     private void aircraftsMoveAction() {
         for (AbstractAircraft enemyAircraft : enemyAircrafts) {
             enemyAircraft.forward();
+            // [v3修复Bug] 越界检测：如果敌机飞出屏幕底端，让其销毁，释放敌机生成名额
+            // 注意：Boss 敌机会在上面左右横跳，所以它的 Y 坐标不会触发这个销毁
+            if (enemyAircraft.getLocationY() >= Main.WINDOW_HEIGHT) {
+                enemyAircraft.vanish();
+            }
         }
+
         for (AbstractProp prop : props) {
             prop.forward();
+            // [v3修复Bug] 道具同理，飞出屏幕底端也自动销毁，防止占用内存
+            if (prop.getLocationY() >= Main.WINDOW_HEIGHT) {
+                prop.vanish();
+            }
         }
     }
+
 
 
     /**
@@ -187,16 +213,26 @@ public class Game extends JPanel {
 
                     // 敌机坠毁掉落道具及加分
                     if (enemyAircraft.notValid()) {
-                        score += 10;
 
-                        // 判定哪些敌机会掉落道具：精英、精锐、王牌都有几率掉落
-                        if (enemyAircraft instanceof EliteEnemy ||
-                                enemyAircraft instanceof VanguardEnemy ||
-                                enemyAircraft instanceof AceEnemy) {
+                        // ==========================================
+                        // [修改] 区分 Boss 死亡和普通敌机死亡
+                        // ==========================================
+                        if (enemyAircraft instanceof BossEnemy) {
+                            score += 50; // 击败 Boss 奖励分数
+                            bossActive = false; // 重置 Boss 标志，允许未来再次生成
+                            System.out.println("Boss 被击毁，掉落高级道具！");
+                            dropBossProps(enemyAircraft); // Boss 特殊掉落机制（3个道具）
+                        } else {
+                            score += 10;
+                            // 判定哪些敌机会掉落道具：精英、精锐、王牌都有几率掉落
+                            if (enemyAircraft instanceof EliteEnemy ||
+                                    enemyAircraft instanceof VanguardEnemy ||
+                                    enemyAircraft instanceof AceEnemy) {
 
-                            // 设定 50% 的概率掉落道具
-                            if (Math.random() < 0.5) {
-                                dropProp(enemyAircraft);
+                                // 设定 50% 的概率掉落道具
+                                if (Math.random() < 0.5) {
+                                    dropProp(enemyAircraft);
+                                }
                             }
                         }
                     }
@@ -215,32 +251,44 @@ public class Game extends JPanel {
     }
 
     // ==========================================
-    // [重构] 掉落逻辑使用简单工厂模式，并区分敌机类型
+    // 道具掉落逻辑
     // ==========================================
     private void dropProp(AbstractAircraft enemy) {
         int x = enemy.getLocationX();
         int y = enemy.getLocationY();
 
-        // 声明一个道具池数组
         String[] propPool = null;
 
-        // 根据敌机类型，设定不同的道具掉落池
         if (enemy instanceof AceEnemy) {
-            // 王牌敌机：5 种道具全覆盖
             propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb", "Freeze"};
         } else if (enemy instanceof VanguardEnemy) {
-            // 精锐敌机：4 种道具（没有冰冻）
             propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb"};
         } else if (enemy instanceof EliteEnemy) {
-            // 精英敌机：基础 3 种道具
             propPool = new String[]{"Blood", "Fire", "SuperFire"};
         }
 
-        // 从池子中随机抽取一种道具，并让工厂生产
         if (propPool != null) {
             int randomIndex = (int) (Math.random() * propPool.length);
             String propType = propPool[randomIndex];
             props.add(PropFactory.createProp(propType, x, y));
+        }
+    }
+
+    // ==========================================
+    // [新增] Boss 死亡掉落 3 个道具的专属方法
+    // ==========================================
+    private void dropBossProps(AbstractAircraft boss) {
+        int x = boss.getLocationX();
+        int y = boss.getLocationY();
+        // Boss 专属豪华掉落池
+        String[] propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb", "Freeze"};
+
+        // 循环生成 3 个道具
+        for (int i = 0; i < 3; i++) {
+            int randomIndex = (int) (Math.random() * propPool.length);
+            String propType = propPool[randomIndex];
+            // x + (i - 1) * 30 是为了让三个道具稍微分散开，不会完全重叠在一起
+            props.add(PropFactory.createProp(propType, x + (i - 1) * 30, y));
         }
     }
 
@@ -249,7 +297,7 @@ public class Game extends JPanel {
         enemyBullets.removeIf(AbstractFlyingObject::notValid);
         heroBullets.removeIf(AbstractFlyingObject::notValid);
         enemyAircrafts.removeIf(AbstractFlyingObject::notValid);
-        props.removeIf(AbstractFlyingObject::notValid); // 清理越界或被拾取的道具
+        props.removeIf(AbstractFlyingObject::notValid);
     }
 
     private void checkResultAction(){
@@ -272,7 +320,7 @@ public class Game extends JPanel {
         }
         paintImageWithPositionRevised(g, enemyBullets);
         paintImageWithPositionRevised(g, heroBullets);
-        paintImageWithPositionRevised(g, props); // [绘制道具]
+        paintImageWithPositionRevised(g, props);
         paintImageWithPositionRevised(g, enemyAircrafts);
 
         g.drawImage(ImageManager.HERO_IMAGE, heroAircraft.getLocationX() - ImageManager.HERO_IMAGE.getWidth() / 2,

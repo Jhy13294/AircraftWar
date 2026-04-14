@@ -1,0 +1,46 @@
+@startuml
+' 设置样式，让访问修饰符显示为标准的 +, -, #，
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Microsoft YaHei"
+
+' 1. 定义抽象基类
+abstract class AbstractAircraft {
+    # hp: int
+    # maxHp: int
+    + {abstract} forward(): void
+    + {abstract} shoot(): List<BaseBullet>
+}
+
+' 2. 定义策略接口
+interface ShootStrategy {
+    + shoot(x: int, y: int, direction: int, power: int, shootNum: int, isHero: boolean): List<BaseBullet>
+}
+
+' 3. 定义英雄机
+class HeroAircraft {
+    - {static} volatile instance : HeroAircraft
+    - strategy : ShootStrategy
+    - shootNum : int
+    - power : int
+    - direction : int
+    - HeroAircraft(locationX: int, locationY: int, speedX: int, speedY: int, hp: int)
+    + {static} getInstance(locationX: int, locationY: int, speedX: int, speedY: int, hp: int) : HeroAircraft
+    + setStrategy(strategy: ShootStrategy) : void
+    + setShootNum(shootNum: int) : void
+    + forward() : void
+    + shoot() : List<BaseBullet>
+}
+
+' 4. 定义关系
+AbstractAircraft <|-- HeroAircraft : 继承
+HeroAircraft o--> ShootStrategy : 组合 (策略模式)
+HeroAircraft --> HeroAircraft : 维护唯一实例
+
+' 5. 添加单例模式的注释说明
+note right of HeroAircraft
+  【双重检查锁定 DCL 单例】
+  1. private 构造方法
+  2. volatile 静态实例 (防止指令重排序)
+  3. synchronized 双检锁获取实例
+end note
+@enduml
