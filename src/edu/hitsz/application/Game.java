@@ -6,6 +6,14 @@ import edu.hitsz.basic.AbstractFlyingObject;
 import edu.hitsz.factory.*;
 import edu.hitsz.prop.AbstractProp;
 
+// === [新增] 导入 DAO 和时间处理相关的包 ===
+import edu.hitsz.dao.PlayerRecord;
+import edu.hitsz.dao.RecordDao;
+import edu.hitsz.dao.RecordDaoImpl;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+// =====================================
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -84,7 +92,6 @@ public class Game extends JPanel {
      * 游戏启动入口，执行游戏逻辑
      */
     public void action() {
-
         // 定时任务：绘制、对象产生、碰撞判定、及结束判定
         TimerTask task = new TimerTask() {
             @Override
@@ -93,12 +100,10 @@ public class Game extends JPanel {
                 // ==========================================
                 // [v3新增] Boss 召唤逻辑
                 // ==========================================
-                // 如果当前分数达到阈值，并且当前没有Boss存活，则召唤 Boss
                 if (score - lastBossScore >= bossThreshold && !bossActive) {
                     System.out.println("警告：Boss 敌机降临！");
                     enemyAircrafts.add(bossEnemyFactory.createEnemy());
                     bossActive = true;
-                    // 更新记录的分数，防止在同一分数段重复生成
                     lastBossScore += bossThreshold;
                 }
 
@@ -108,7 +113,6 @@ public class Game extends JPanel {
 
                     if (enemyAircrafts.size() < enemyMaxNumber) {
                         double rand = Math.random();
-                        // 设定出现概率：王牌 5%，精锐 15%，精英 30%，普通 50%
                         if (rand < 0.05) {
                             enemyAircrafts.add(aceEnemyFactory.createEnemy());
                         } else if (rand < 0.20) {
@@ -121,23 +125,15 @@ public class Game extends JPanel {
                     }
                 }
 
-                // 飞机发射子弹
                 shootAction();
-                // 子弹移动
                 bulletsMoveAction();
-                // 飞机移动
                 aircraftsMoveAction();
-                // 撞击检测
                 crashCheckAction();
-                // 后处理
                 postProcessAction();
-                // 重绘界面
                 repaint();
-                // 游戏结束检查
                 checkResultAction();
             }
         };
-        // 以固定延迟时间进行执行
         timer.schedule(task, 0, timeInterval);
     }
 
@@ -169,8 +165,6 @@ public class Game extends JPanel {
     private void aircraftsMoveAction() {
         for (AbstractAircraft enemyAircraft : enemyAircrafts) {
             enemyAircraft.forward();
-            // [v3修复Bug] 越界检测：如果敌机飞出屏幕底端，让其销毁，释放敌机生成名额
-            // 注意：Boss 敌机会在上面左右横跳，所以它的 Y 坐标不会触发这个销毁
             if (enemyAircraft.getLocationY() >= Main.WINDOW_HEIGHT) {
                 enemyAircraft.vanish();
             }
@@ -178,24 +172,16 @@ public class Game extends JPanel {
 
         for (AbstractProp prop : props) {
             prop.forward();
-            // [v3修复Bug] 道具同理，飞出屏幕底端也自动销毁，防止占用内存
             if (prop.getLocationY() >= Main.WINDOW_HEIGHT) {
                 prop.vanish();
             }
         }
     }
 
-
-
-    /**
-     * 碰撞检测
-     */
     private void crashCheckAction() {
         // 1. 敌机子弹攻击英雄机
         for (BaseBullet bullet : enemyBullets) {
-            if (bullet.notValid()) {
-                continue;
-            }
+            if (bullet.notValid()) continue;
             if (heroAircraft.crash(bullet)) {
                 heroAircraft.decreaseHp(bullet.getPower());
                 bullet.vanish();
@@ -211,25 +197,17 @@ public class Game extends JPanel {
                     enemyAircraft.decreaseHp(bullet.getPower());
                     bullet.vanish();
 
-                    // 敌机坠毁掉落道具及加分
                     if (enemyAircraft.notValid()) {
-
-                        // ==========================================
-                        // [修改] 区分 Boss 死亡和普通敌机死亡
-                        // ==========================================
                         if (enemyAircraft instanceof BossEnemy) {
-                            score += 50; // 击败 Boss 奖励分数
-                            bossActive = false; // 重置 Boss 标志，允许未来再次生成
+                            score += 50;
+                            bossActive = false;
                             System.out.println("Boss 被击毁，掉落高级道具！");
-                            dropBossProps(enemyAircraft); // Boss 特殊掉落机制（3个道具）
+                            dropBossProps(enemyAircraft);
                         } else {
                             score += 10;
-                            // 判定哪些敌机会掉落道具：精英、精锐、王牌都有几率掉落
                             if (enemyAircraft instanceof EliteEnemy ||
                                     enemyAircraft instanceof VanguardEnemy ||
                                     enemyAircraft instanceof AceEnemy) {
-
-                                // 设定 50% 的概率掉落道具
                                 if (Math.random() < 0.5) {
                                     dropProp(enemyAircraft);
                                 }
@@ -244,19 +222,15 @@ public class Game extends JPanel {
         for (AbstractProp prop : props) {
             if (prop.notValid()) continue;
             if (heroAircraft.crash(prop)) {
-                prop.effect(heroAircraft); // 生效
-                prop.vanish();             // 消失
+                prop.effect(heroAircraft);
+                prop.vanish();
             }
         }
     }
 
-    // ==========================================
-    // 道具掉落逻辑
-    // ==========================================
     private void dropProp(AbstractAircraft enemy) {
         int x = enemy.getLocationX();
         int y = enemy.getLocationY();
-
         String[] propPool = null;
 
         if (enemy instanceof AceEnemy) {
@@ -274,24 +248,17 @@ public class Game extends JPanel {
         }
     }
 
-    // ==========================================
-    // [新增] Boss 死亡掉落 3 个道具的专属方法
-    // ==========================================
     private void dropBossProps(AbstractAircraft boss) {
         int x = boss.getLocationX();
         int y = boss.getLocationY();
-        // Boss 专属豪华掉落池
         String[] propPool = new String[]{"Blood", "Fire", "SuperFire", "Bomb", "Freeze"};
 
-        // 循环生成 3 个道具
         for (int i = 0; i < 3; i++) {
             int randomIndex = (int) (Math.random() * propPool.length);
             String propType = propPool[randomIndex];
-            // x + (i - 1) * 30 是为了让三个道具稍微分散开，不会完全重叠在一起
             props.add(PropFactory.createProp(propType, x + (i - 1) * 30, y));
         }
     }
-
 
     private void postProcessAction() {
         enemyBullets.removeIf(AbstractFlyingObject::notValid);
@@ -300,11 +267,43 @@ public class Game extends JPanel {
         props.removeIf(AbstractFlyingObject::notValid);
     }
 
+    /**
+     * ⭐ 修改：游戏结束检查，触发排行榜 DAO 保存逻辑
+     */
     private void checkResultAction(){
         if (heroAircraft.getHp() <= 0) {
-            timer.cancel();
+            timer.cancel(); // 停止游戏定时器
             gameOverFlag = true;
             System.out.println("Game Over!");
+
+            // ==========================================
+            // [新增] DAO 模式：保存并打印排行榜数据
+            // ==========================================
+
+            // 1. 获取当前格式化的时间
+            SimpleDateFormat formatter = new SimpleDateFormat("MM-dd HH:mm");
+            String currentTime = formatter.format(new Date());
+
+            // 2. 实例化 DAO 对象（暂时固定写 "Easy" 难度，后续实验再做难度选择）
+            RecordDao recordDao = new RecordDaoImpl("Easy");
+
+            // 3. 将本次得分封装并添加到 DAO 中，它会自动写入文件
+            // （这里的 "TestUser" 暂时写死，后续实验会让你做弹窗输入玩家名）
+            PlayerRecord currentRecord = new PlayerRecord("TestUser", this.score, currentTime);
+            recordDao.doAdd(currentRecord);
+
+            // 4. 控制台打印排行榜
+            System.out.println("************************************************");
+            System.out.println("                  得分排行榜                     ");
+            System.out.println("************************************************");
+
+            List<PlayerRecord> leaderboard = recordDao.getAllRecords();
+            for (int i = 0; i < leaderboard.size(); i++) {
+                PlayerRecord record = leaderboard.get(i);
+                System.out.printf("第 %d 名： %s，得分：%d，时间：%s\n",
+                        (i + 1), record.getUserName(), record.getScore(), record.getRecordTime());
+            }
+            // ==========================================
         }
     }
 

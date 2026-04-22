@@ -1,0 +1,64 @@
+@startuml
+' 设置类图的属性图标显示为标准的 UML 符号 (+, -, #)
+skinparam classAttributeIconSize 0
+skinparam dpi 150
+
+title 飞机大战 - 排行榜数据访问对象 (DAO) 模式 UML 图
+
+' 1. 实体类 (Value Object)
+class PlayerRecord {
+    - userName : String
+    - score : int
+    - recordTime : String
+    + PlayerRecord(userName: String, score: int, recordTime: String)
+    + getUserName() : String
+    + getScore() : int
+    + getRecordTime() : String
+    + setUserName(userName: String) : void
+    + setScore(score: int) : void
+    + setRecordTime(recordTime: String) : void
+}
+
+' 2. DAO 接口
+interface RecordDao {
+    + getAllRecords() : List<PlayerRecord>
+    + doAdd(record: PlayerRecord) : void
+    + doDelete(index: int) : void
+}
+
+' 3. DAO 实现类
+class RecordDaoImpl {
+    - records : List<PlayerRecord>
+    - fileName : String
+    + RecordDaoImpl(difficulty: String)
+    - loadFromFile() : void
+    - saveToFile() : void
+    + getAllRecords() : List<PlayerRecord>
+    + doAdd(record: PlayerRecord) : void
+    + doDelete(index: int) : void
+}
+
+' 4. 客户端 (游戏业务主类)
+class Game {
+    - recordDao : RecordDao
+    - difficulty : String
+    - score : int
+    + gameOver() : void
+}
+
+' ================== 关系连线 ==================
+
+' RecordDaoImpl 实现了 RecordDao 接口 (虚线 + 空心三角)
+RecordDaoImpl ..|> RecordDao : <<implements>>
+
+' Game 类关联并使用了 RecordDao 接口 (实线 + 箭头)
+' 体现了“依赖倒置原则”，Game 只依赖接口，不依赖具体实现
+Game --> RecordDao : uses
+
+' RecordDao 接口依赖了 PlayerRecord 实体类 (虚线 + 箭头)
+RecordDao ..> PlayerRecord : depends on
+
+' RecordDaoImpl 内部聚合了 PlayerRecord 的列表 (实线 + 空心菱形)
+RecordDaoImpl o--> PlayerRecord : contains
+
+@enduml
