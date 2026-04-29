@@ -12,6 +12,9 @@ import edu.hitsz.dao.RecordDao;
 import edu.hitsz.dao.RecordDaoImpl;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+// === [v5新增] 导入音频管理器 ===
+import edu.hitsz.music.AudioManager;
 // =====================================
 
 import javax.swing.*;
@@ -56,7 +59,7 @@ public class Game extends JPanel {
     // ==========================================
     // [v3新增] Boss 机制相关变量
     // ==========================================
-    private final int bossThreshold = 100;      // 分数阈值：每增加 500 分召唤一次 Boss
+    private final int bossThreshold = 100;      // 分数阈值：每增加 500 分召唤一次 Boss (测试用100)
     private int lastBossScore = 0;              // 记录上次召唤 Boss 时的分数
     private boolean bossActive = false;         // 标志位：当前屏幕上是否有 Boss
 
@@ -92,6 +95,9 @@ public class Game extends JPanel {
      * 游戏启动入口，执行游戏逻辑
      */
     public void action() {
+        // [v5新增] 游戏刚开始，播放基础背景音乐
+        AudioManager.playBGM();
+
         // 定时任务：绘制、对象产生、碰撞判定、及结束判定
         TimerTask task = new TimerTask() {
             @Override
@@ -105,6 +111,10 @@ public class Game extends JPanel {
                     enemyAircrafts.add(bossEnemyFactory.createEnemy());
                     bossActive = true;
                     lastBossScore += bossThreshold;
+
+                    // [v5新增] Boss 降临，切换专属 BGM
+                    AudioManager.stopBGM();
+                    AudioManager.playBossBGM();
                 }
 
                 enemySpawnCounter++;
@@ -194,6 +204,10 @@ public class Game extends JPanel {
             for (AbstractAircraft enemyAircraft : enemyAircrafts) {
                 if (enemyAircraft.notValid()) continue;
                 if (enemyAircraft.crash(bullet)) {
+
+                    // [v5新增] 击中敌机，播放击中音效
+                    AudioManager.playHitSound();
+
                     enemyAircraft.decreaseHp(bullet.getPower());
                     bullet.vanish();
 
@@ -203,6 +217,11 @@ public class Game extends JPanel {
                             bossActive = false;
                             System.out.println("Boss 被击毁，掉落高级道具！");
                             dropBossProps(enemyAircraft);
+
+                            // [v5新增] Boss 阵亡，停止 Boss 音乐，恢复普通 BGM
+                            AudioManager.stopBossBGM();
+                            AudioManager.playBGM();
+
                         } else {
                             score += 10;
                             if (enemyAircraft instanceof EliteEnemy ||
@@ -222,6 +241,15 @@ public class Game extends JPanel {
         for (AbstractProp prop : props) {
             if (prop.notValid()) continue;
             if (heroAircraft.crash(prop)) {
+
+                // [v5新增] 吃到道具音效
+                // 如果是炸弹道具，额外播放爆炸音效 (假设炸弹类名包含 "Bomb")
+                if (prop.getClass().getSimpleName().contains("Bomb")) {
+                    AudioManager.playBombSound();
+                } else {
+                    AudioManager.playGetSupplySound();
+                }
+
                 prop.effect(heroAircraft);
                 prop.vanish();
             }
@@ -268,7 +296,7 @@ public class Game extends JPanel {
     }
 
     /**
-     * ⭐ 修改：游戏结束检查，触发排行榜 DAO 保存逻辑
+     * ⭐ 游戏结束检查，触发弹窗、保存成绩、并切换到排行榜
      */
     private void checkResultAction(){
         if (heroAircraft.getHp() <= 0) {
@@ -276,34 +304,38 @@ public class Game extends JPanel {
             gameOverFlag = true;
             System.out.println("Game Over!");
 
-            // ==========================================
-            // [新增] DAO 模式：保存并打印排行榜数据
-            // ==========================================
+            // 停止音乐并播放结束音效
+            AudioManager.stopBGM();
+            AudioManager.stopBossBGM();
+            AudioManager.playGameOverSound();
 
-            // 1. 获取当前格式化的时间
+            // 1. 弹出输入框，让玩家输入名字
+            String userName = JOptionPane.showInputDialog(
+                    Main.cardPanel,
+                    "游戏结束！你的最终得分是: " + this.score + "\n请输入你的名字：",
+                    "保存成绩",
+                    JOptionPane.PLAIN_MESSAGE
+            );
+
+            // 如果玩家点了取消或者没输入内容，给个默认名
+            if (userName == null || userName.trim().isEmpty()) {
+                userName = "Anonymous (匿名)";
+            }
+
+            // 2. 将数据保存进 DAO
             SimpleDateFormat formatter = new SimpleDateFormat("MM-dd HH:mm");
             String currentTime = formatter.format(new Date());
+            RecordDao recordDao = new RecordDaoImpl("Easy"); // 暂定存入 Easy 的文件
 
-            // 2. 实例化 DAO 对象（暂时固定写 "Easy" 难度，后续实验再做难度选择）
-            RecordDao recordDao = new RecordDaoImpl("Easy");
-
-            // 3. 将本次得分封装并添加到 DAO 中，它会自动写入文件
-            // （这里的 "TestUser" 暂时写死，后续实验会让你做弹窗输入玩家名）
-            PlayerRecord currentRecord = new PlayerRecord("TestUser", this.score, currentTime);
+            PlayerRecord currentRecord = new PlayerRecord(userName, this.score, currentTime);
             recordDao.doAdd(currentRecord);
 
-            // 4. 控制台打印排行榜
-            System.out.println("************************************************");
-            System.out.println("                  得分排行榜                     ");
-            System.out.println("************************************************");
+            // 3. 实例化排行榜界面，并传给它含有最新数据的 DAO
+            ScoreBoard scoreBoard = new ScoreBoard(recordDao);
 
-            List<PlayerRecord> leaderboard = recordDao.getAllRecords();
-            for (int i = 0; i < leaderboard.size(); i++) {
-                PlayerRecord record = leaderboard.get(i);
-                System.out.printf("第 %d 名： %s，得分：%d，时间：%s\n",
-                        (i + 1), record.getUserName(), record.getScore(), record.getRecordTime());
-            }
-            // ==========================================
+            // 4. 将排行榜面板加入卡片舞台，并“切牌”展示它！
+            Main.cardPanel.add(scoreBoard.getMainPanel(), "ScoreBoard");
+            Main.cardLayout.show(Main.cardPanel, "ScoreBoard");
         }
     }
 
